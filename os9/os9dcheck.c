@@ -442,6 +442,16 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 						_os9_allbit(secondaryBitmap, int3(dEnt[k].lsn), 1);
 
 						gFileCount++;
+						fd_seg first_seg = file_fd->fd_seg[0];
+						unsigned int first_seg_lsn_actual = int3(first_seg.lsn);
+						unsigned int first_seg_lsn_expected = int3(dEnt[k].lsn)+1;
+						if(first_seg_lsn_actual != first_seg_lsn_expected) {
+							printf("first seg LSN: expected 0x%06x, actual 0x%06x (diff %d). Proceeding as if\n", 
+							first_seg_lsn_expected, 
+							first_seg_lsn_actual,
+							first_seg_lsn_actual - first_seg_lsn_expected);
+							_int3(first_seg_lsn_expected, first_seg.lsn);
+						}
 						ParseFDSegList(file_fd, dd_tot, newPath, secondaryBitmap);
 					}
 					else
