@@ -317,6 +317,7 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 		exit(-1);
 	}
 	
+	printf("read_lsn dir 0x%06x\n", dir_lsn);
 	if (read_lsn(os9_path, dir_lsn, dir_fd ) != bps)
 	{
 		printf("Sector wrong size, terminating (001).\n" );
@@ -379,7 +380,8 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 					printf("Out of memory, terminating (002).\n");
 					exit(-1);
 				}
-				
+
+				printf("read_lsn dirfile 0x%06x\n", int3(theSeg->lsn)+j);
 				if( read_lsn( os9_path, int3(theSeg->lsn)+j, dEnt ) != bps )
 				{
 					int	temp = int3(theSeg->lsn)+j;
@@ -428,6 +430,7 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 						exit(-1);
 					}
 					
+					printf("read_lsn direntry 0x%06x %s\n", int3(dEnt[k].lsn), newPath);
 					if( read_lsn(os9_path, int3(dEnt[k].lsn), file_fd ) != bps )
 					{
 						printf("Sector wrong size, terminating (003).\n" );
@@ -487,6 +490,8 @@ static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path, unsign
 	Fd_seg		theSeg;
 	u_int 		num, curLSN;
 
+	printf("ParseFDSegList path=%s\n", path);
+
 	while( int3(fd->fd_seg[i].lsn) != 0 )
 	{
 		if( i > NUM_SEGS )
@@ -497,6 +502,7 @@ static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path, unsign
 
 		theSeg = &(fd->fd_seg[i]);
 		num = int2(theSeg->num);
+		printf("ParseFDSegList seg .lsn=0x%06x .num=0x%04x\n", int3(theSeg->lsn), num);
 
 		if( (int3(theSeg->lsn) + num) > dd_tot )
 		{
