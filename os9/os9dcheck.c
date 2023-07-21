@@ -423,6 +423,20 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 						continue;
 					}
 
+					if (int3(dEnt[k].lsn) >= 0x320 && int3(dEnt[k].lsn) < 0x380)
+					{
+						printf("File: %s is in bad data copy. Skipping.\n", newPath);
+						free(newPath);
+						continue;
+					}
+
+					if (strcmp((char *)dEnt[k].name, "param_step_rep") == 0)
+					{
+						printf("File: %s is known to be damaged. Skipping.\n", newPath);
+						free(newPath);
+						continue;
+					}
+
 					file_fd = (fd_stats *)malloc( bps );
 					if( file_fd == NULL )
 					{
