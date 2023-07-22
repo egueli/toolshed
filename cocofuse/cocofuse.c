@@ -47,6 +47,8 @@ static int coco_statfs(const char *path, struct statvfs *stbuf)
 	u_int month, day, year, bps, total_sectors, bytes_free, free_sectors;
 	u_int largest_free_block, sectors_per_cluster, largest_count, sector_count;
 	
+	syslog(LOG_DEBUG, "coco_statfs(%s) begin", path);
+
 	sprintf(buff, "%s,%s", dsk, path);
 	_coco_identify_image(buff, &type);
 	/* Here we revert to RBF or Disk BASIC to get details about the disk */
@@ -167,6 +169,8 @@ static int coco_getattr(const char *path, struct stat *stbuf)
 	coco_file_stat fdbuf;
 	char buff[1024];
 	
+	syslog(LOG_DEBUG, "coco_getattr(%s) begin", path);
+
     memset(stbuf, 0, sizeof(struct stat));
 	sprintf(buff, "%s,%s", dsk, path);
 	if ((ec = -CoCoToUnixError(_coco_gs_fd_pathlist(buff, &fdbuf))) == 0)
@@ -213,6 +217,8 @@ static int coco_mkdir(const char *path, mode_t mode)
 	error_code ec;
 	char buff[1024];
 
+	syslog(LOG_DEBUG,"coco_makdir(%s) begin", path);
+
 	sprintf(buff, "%s,%s", dsk, path);
 	ec = -CoCoToUnixError(_coco_makdir(buff));
 
@@ -235,6 +241,8 @@ static int coco_unlink(const char *path)
 {
 	error_code ec;
 	char buff[1024];
+
+	syslog(LOG_DEBUG,"coco_unlink(%s) begin", path);
 
 	sprintf(buff, "%s,%s", dsk, path);
 	ec = -CoCoToUnixError(_coco_delete(buff));
@@ -388,6 +396,8 @@ static int coco_open(const char *path, struct fuse_file_info *fi)
 	char buff[1024];
 	int mflags = FAM_READ;
 
+	syslog(LOG_DEBUG,"coco_open(%s) begin", path);
+
 	sprintf(buff, "%s,%s", dsk, path);
 
 	if ((fi->flags & O_ACCMODE) != O_RDONLY)
@@ -415,6 +425,8 @@ static int coco_read(const char *path, char *buf, size_t size, off_t offset, str
 {
 	error_code ec;
 	uint32_t _size = size;
+
+	syslog(LOG_DEBUG,"coco_read(%s, $%X, %ld) begin", path, (unsigned)buf, size);
 
 	coco_path_id p = (coco_path_id)(uint32_t)fi->fh;
 	_coco_seek(p, offset, SEEK_SET);
@@ -468,7 +480,8 @@ static int coco_write(const char *path, const char *buf, size_t size, off_t offs
 static int coco_release(const char *path, struct fuse_file_info *fi)
 {
 	error_code ec;
-	
+	syslog(LOG_DEBUG,"coco_release(%s) begin", path);
+
 	ec = -CoCoToUnixError(_coco_close((coco_path_id)(int32_t)fi->fh));
 	
 #ifdef DEBUG
@@ -526,6 +539,8 @@ static int coco_opendir(const char *path, struct fuse_file_info *fi)
 	char buff[1024];
 	int mflags = FAM_READ;
 
+	syslog(LOG_DEBUG,"coco_opendir(%s) begin", path);
+
 	sprintf(buff, "%s,%s", dsk, path);
 
 	mflags |= FAM_DIR;
@@ -557,6 +572,8 @@ static int coco_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	coco_path_id p;
 	coco_dir_entry e;
 	char buff[1024];
+
+	syslog(LOG_DEBUG,"coco_readdir(%s) begin", path);
 
 #if !0
 	sprintf(buff, "%s,%s", dsk, path);

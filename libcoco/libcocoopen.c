@@ -5,6 +5,7 @@
  ********************************************************************/
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 
 #include "cococonv.h"
 #include "cocosys.h"
@@ -159,6 +160,8 @@ error_code _coco_close(coco_path_id path)
 {
     error_code	ec = 0;
 
+	syslog(LOG_DEBUG,"_coco_close(%p)", path);
+	syslog(LOG_DEBUG,"_coco_close type %d", path->type);
 
     /* 1. Call appropriate close function. */
 
@@ -182,6 +185,8 @@ error_code _coco_close(coco_path_id path)
 
 
 	free(path);
+
+	syslog(LOG_DEBUG,"_coco_close(%p) = %d", path, ec);
 
 
 	return ec;
