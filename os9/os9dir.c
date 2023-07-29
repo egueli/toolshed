@@ -24,6 +24,7 @@ static int do_dir(char **argv, char *p);
 
 /* globals */
 static int extended = 0, dotfiles = 0, recurse = 0;
+static int deletedfiles = 0;
 
 /* Help Message */
 static char const * const helpMessage[] =
@@ -69,6 +70,10 @@ int os9dir(int argc, char *argv[])
 	
 					case 'r':
 						recurse = 1;
+						break;
+
+					case 'd':
+						deletedfiles = 1;
 						break;
 	
 					case '?':
@@ -197,11 +202,16 @@ retry:
 
 		filename = strdup((char *)dentry.name);
 		OS9StringToCString((u_char *)filename);
-		if (filename[0] == '\0' || (filename[0] == '.' && dotfiles == 0))
+		if ((filename[0] == '\0' && deletedfiles == 0) || (filename[0] == '.' && dotfiles == 0))
 		{
 			/* skip over deleted entries & dot files */
 			free(filename);
 			continue;
+		}
+
+		if (filename[0] == '\0')
+		{
+			filename[0] = '_';
 		}
 
 		if (extended == 1 || recurse == 1)
