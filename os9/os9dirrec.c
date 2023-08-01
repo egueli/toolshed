@@ -264,6 +264,62 @@ static int do_dirrec(char **argv, char *p, int lsn)
 	return(ec);
 }
 
+static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, int bps, char *path, int k)
+{
+	fd_stats    *file_fd;
+	char		*newPath;
+
+	if (dEnt[k].name[0] == 0)
+	{
+		return(0);
+	}
+
+	OS9StringToCString(dEnt[k].name);
+	
+	if (strcmp((char *)dEnt[k].name, ".") == 0)
+	{
+		return(0);
+	}
+	if (strcmp((char *)dEnt[k].name, "..") == 0)
+	{
+		return(0);
+	}
+
+	newPath = strcatdup(path, "/", (char *)dEnt[k].name);
+	
+	if (int3(dEnt[k].lsn) > dd_tot)
+	{
+		printf("File: %s, contains bad LSN\n", newPath);
+		free(newPath);
+		return 0;
+	}
+
+	file_fd = (fd_stats *)malloc( bps );
+	if( file_fd == NULL )
+	{
+		printf("Out of memory, terminating (003).\n");
+		exit(-1);
+	}
+	
+	if( read_lsn(os9_path, int3(dEnt[k].lsn), file_fd ) != bps )
+	{
+		printf("Sector wrong size, terminating (003).\n" );
+		printf("LSN: %d\n", int3(dEnt[k].lsn) );
+		exit(-1);
+	}
+
+	/* If actually a file? */
+	if ((file_fd->fd_att & FAP_DIR) == 0)
+	{
+		gFileCount++;
+		ParseFDSegList(file_fd, dd_tot, newPath, NULL);
+	}
+	
+	free(file_fd);
+	free(newPath);
+
+	return 0;
+}
 
 /* This function will drill down into a directory file and fillout a secondary allocation bitmap.
    It is recursive, so whenever a directory is encoundered it will call itself. It will also compare
@@ -272,14 +328,13 @@ static int do_dirrec(char **argv, char *p, int lsn)
 static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn, char *path, unsigned char *secondaryBitmap )
 {
 	error_code 	ec = 0;
-	fd_stats	*dir_fd, *file_fd;
+	fd_stats	*dir_fd;
 	u_int		dd_tot,
 				fd_siz,
 				count,
 				i, j, k;
 	os9_dir_entry	*dEnt;  /* Each entry is 32 bytes long */
 	Fd_seg		theSeg;
-	char		*newPath;
 	int			bps = os9_path->bps;
 
 	/* Check if this directory has already been drilled into */
@@ -385,66 +440,11 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 						break;
 					}
 
-					if (dEnt[k].name[0] == 0)
+					ec = ProcessDirectoryEntry(os9_path, dEnt, dd_tot, bps, path, k);
+					if (ec != 0)
 					{
-						continue;
+						return ec;
 					}
-
-					OS9StringToCString(dEnt[k].name);
-					
-					if (strcmp((char *)dEnt[k].name, ".") == 0)
-					{
-						continue;
-					}
-					if (strcmp((char *)dEnt[k].name, "..") == 0)
-					{
-						continue;
-					}
-
-					newPath = strcatdup(path, "/", (char *)dEnt[k].name);
-					
-					if (int3(dEnt[k].lsn) > dd_tot)
-					{
-						printf("File: %s, contains bad LSN\n", newPath);
-						free(newPath);
-						continue;
-					}
-
-					file_fd = (fd_stats *)malloc( bps );
-					if( file_fd == NULL )
-					{
-						printf("Out of memory, terminating (003).\n");
-						exit(-1);
-					}
-					
-					if( read_lsn(os9_path, int3(dEnt[k].lsn), file_fd ) != bps )
-					{
-						printf("Sector wrong size, terminating (003).\n" );
-						printf("LSN: %d\n", int3(dEnt[k].lsn) );
-						exit(-1);
-					}
-
-					/* If actually a directory? */
-					if ((file_fd->fd_att & FAP_DIR) == 0)
-					{
-						/* No, file is a file */
-						_os9_allbit(secondaryBitmap, int3(dEnt[k].lsn), 1);
-
-						gFileCount++;
-						ParseFDSegList(file_fd, dd_tot, newPath, secondaryBitmap);
-					}
-					else
-					{
-						/* Yes, go do directory */
-						ec = BuildSecondaryAllocationMap(os9_path, int3(dEnt[k].lsn), newPath, secondaryBitmap);
-						if (ec != 0)
-						{
-							return(ec);
-						}
-					}
-					
-					free(file_fd);
-					free(newPath);
 				}
 				
 				free(dEnt);
