@@ -424,11 +424,11 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 					exit(-1);
 				}
 				
-				if( read_lsn( os9_path, int3(theSeg->lsn)+j, dEnt ) != bps )
-				{
-					int	temp = int3(theSeg->lsn)+j;
-					
-					printf("Sector wrong size, terminating (002).\nLSN: %d\n", temp );
+				int dir_lsn = int3(theSeg->lsn)+j;
+
+				if( read_lsn( os9_path, dir_lsn, dEnt ) != bps )
+				{					
+					printf("Sector wrong size, terminating (002).\nLSN: %d\n", dir_lsn );
 					exit(-1);
 				}
 
