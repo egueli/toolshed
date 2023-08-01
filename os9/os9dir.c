@@ -209,7 +209,7 @@ retry:
 			continue;
 		}
 
-		if (filename[0] == '\0')
+		if (filename[0] == '\0') /* assuming deletedfiles==1 due to the above */
 		{
 			filename[0] = '_';
 		}
@@ -229,6 +229,7 @@ retry:
 				ec = _os9_open(&path2, filepath, FAM_DIR | FAM_READ);
 				if( ec != 0 )
 				{
+					fprintf(stderr, "unable to get info of %s: diropen returned %d\n", filepath, ec);
 					break;
 				}
 			}
