@@ -322,6 +322,47 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEn
 	return 0;
 }
 
+static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_int dd_tot, int dir_lsn, char *path, u_int *count)
+{
+	error_code 	    ec = 0;
+	int			    bps = os9_path->bps;
+	os9_dir_entry	*dEnt;  /* Each entry is 32 bytes long */
+	u_int           k;
+
+	dEnt = (os9_dir_entry *)malloc( bps );
+	if( dEnt == NULL )
+	{
+		printf("Out of memory, terminating (002).\n");
+		exit(-1);
+	}
+
+
+	if( read_lsn( os9_path, dir_lsn, dEnt ) != bps )
+	{					
+		printf("Sector wrong size, terminating (002).\nLSN: %d\n", dir_lsn );
+		exit(-1);
+	}
+
+	for (k = 0; k < (bps / sizeof(os9_dir_entry)); k++)
+	{
+		*count += sizeof(os9_dir_entry);
+		if (*count > fd_siz)
+		{
+			break;
+		}
+
+		ec = ProcessDirectoryEntry(os9_path, dEnt, dd_tot, path, k);
+		if (ec != 0)
+		{
+			break;
+		}
+	}
+
+	free(dEnt);
+
+	return ec;
+}
+
 /* This function will drill down into a directory file and fillout a secondary allocation bitmap.
    It is recursive, so whenever a directory is encoundered it will call itself. It will also compare
    the map it creates with the map suppilied that represents the map on disk. */
@@ -333,8 +374,7 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 	u_int		dd_tot,
 				fd_siz,
 				count,
-				i, j, k;
-	os9_dir_entry	*dEnt;  /* Each entry is 32 bytes long */
+				i, j;
 	Fd_seg		theSeg;
 	int			bps = os9_path->bps;
 
@@ -418,37 +458,13 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 					break;
 				}
 				
-				dEnt = (os9_dir_entry *)malloc( bps );
-				if( dEnt == NULL )
-				{
-					printf("Out of memory, terminating (002).\n");
-					exit(-1);
-				}
-				
 				int dir_lsn = int3(theSeg->lsn)+j;
 
-				if( read_lsn( os9_path, dir_lsn, dEnt ) != bps )
-				{					
-					printf("Sector wrong size, terminating (002).\nLSN: %d\n", dir_lsn );
-					exit(-1);
-				}
-
-				for (k = 0; k < (bps / sizeof(os9_dir_entry)); k++)
+				ec = ProcessDirectorySector(os9_path, fd_siz, dd_tot, dir_lsn, path, &count);			
+				if (ec != 0)
 				{
-					count += sizeof(os9_dir_entry);
-					if (count > fd_siz)
-					{
-						break;
-					}
-
-					ec = ProcessDirectoryEntry(os9_path, dEnt, dd_tot, path, k);
-					if (ec != 0)
-					{
-						return ec;
-					}
+					return ec;
 				}
-				
-				free(dEnt);
 			}
 			
 			i++;
