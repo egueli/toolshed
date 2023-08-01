@@ -44,6 +44,7 @@ static struct cmdtbl table[] =
     {os9del,	"del"},
     {os9deldir,	"deldir"},
     {os9dir,	"dir"},	
+    {os9dirrec,	"dirrec"},	
     {os9dsave,	"dsave"},	
     {os9dump,	"dump"},
     {os9format,	"format"},
