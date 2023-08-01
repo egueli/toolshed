@@ -264,8 +264,9 @@ static int do_dirrec(char **argv, char *p, int lsn)
 	return(ec);
 }
 
-static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, int bps, char *path, int k)
+static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, char *path, int k)
 {
+	int			bps = os9_path->bps;
 	fd_stats    *file_fd;
 	char		*newPath;
 
@@ -440,7 +441,7 @@ static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn
 						break;
 					}
 
-					ec = ProcessDirectoryEntry(os9_path, dEnt, dd_tot, bps, path, k);
+					ec = ProcessDirectoryEntry(os9_path, dEnt, dd_tot, path, k);
 					if (ec != 0)
 					{
 						return ec;
