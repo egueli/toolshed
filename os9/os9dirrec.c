@@ -17,7 +17,7 @@ static void PathlistsForQuestionableClusters();
 static void FreeQuestionableMemory();
 static void AddQuestionableCluster( int cluster );
 static void AddPathToBit( int lsn, char *path );
-static int do_dcheck(char **argv, char *p);
+static int do_dirrec(char **argv, char *p, int lsn);
 static void PathlistsForQuestionableClusters(void);
 static void FreeQuestionableMemory(void);
 
@@ -25,15 +25,9 @@ static void FreeQuestionableMemory(void);
 /* Help message */
 static char const * const helpMessage[] =
 {
-	"Syntax: dirrec {[<opts>]} {<disk> [<...>]} {[<opts>]}\n",
-	"Usage:  Reads directory entries from an LSN in a disk image, and.\n",
-	"Options:\n",
-	"     -s    check the number of directories and files and display\n",
-	"            the results. This option causes dcheck to check only\n",
-	"            the file descriptors for accuracy\n",
-	"     -b    suppress listing of unused clusters (clusters allocated\n",
-	"            but not in file structure)\n"
-	"     -p    print pathlists of questionable clusters\n",	
+	"Syntax: dirrec {<disk>} {<lsn>}\n",
+	"Usage:  Reads directory entries from an arbitrary sector in a disk\n",
+	"image, and tries to recover files.\n",
 	NULL
 };
 
@@ -66,9 +60,8 @@ int os9dirrec(int argc, char *argv[])
 {
 	error_code	ec = 0;
 	char *p = NULL;
+	int lsn;
 	int i;
-	
-	sOption = bOption = pOption = 0;
 	
 	/* walk command line for options */
 	for (i = 1; i < argc; i++)
@@ -79,20 +72,7 @@ int os9dirrec(int argc, char *argv[])
 			{
 				switch(*p)
 				{
-					case 's':
-						sOption = 1;
-						break;
-					case 'b':
-						bOption = 1;
-						break;
-					case 'p':
-						pOption = 1;
-						break;
-					case '?':
-					case 'h':
-						show_help(helpMessage);
-						return(0);
-	
+					/* no options currently implemented */	
 					default:
 						fprintf(stderr, "%s: unknown option '%c'\n", argv[0], *p);
 						return(0);
@@ -110,22 +90,28 @@ int os9dirrec(int argc, char *argv[])
 		}
 		else
 		{
-			p = argv[i];
-		}
-
-		ec = do_dcheck(argv, p);
-
-		if (ec != 0)
-		{
-			fprintf(stderr, "%s: error %d opening '%s'\n", argv[0], ec, p);
-			return(ec);
+			if (!p)
+			{
+				p = argv[i];
+			}
+			else {
+				lsn = (int)strtol(argv[i], NULL, 0);
+			}
 		}
 	}
 
-	if (argv[1] == NULL)
+	if (argc < 3 || p == NULL || lsn == 0)
 	{
 		show_help(helpMessage);
 		return(0);
+	}
+
+	ec = do_dirrec(argv, p, lsn);
+
+	if (ec != 0)
+	{
+		fprintf(stderr, "%s: error %d opening '%s'\n", argv[0], ec, p);
+		return(ec);
 	}
 
 	return(0);
@@ -133,7 +119,7 @@ int os9dirrec(int argc, char *argv[])
 
 
 
-static int do_dcheck(char **argv, char *p)
+static int do_dirrec(char **argv, char *p, int lsn)
 {
 	error_code	ec = 0;
 	os9_path_id		os9_path;
@@ -142,6 +128,9 @@ static int do_dcheck(char **argv, char *p)
 	char		*newName;
 	char os9pathlist[256];
 	double		size;
+
+	fprintf(stderr, "Image path: %s\nLSN: 0x%x\n", p, lsn);
+	return 0;
 	
 	if( strchr(p, ',') != 0 )
 	{
