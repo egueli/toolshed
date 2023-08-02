@@ -125,14 +125,8 @@ static int do_dirrec(char **argv, char *p, int lsn)
 	error_code	ec = 0;
 	os9_path_id		os9_path;
 	int		cluster_size;
-	unsigned char  *secondaryBitmap;
-	char		*newName;
 	char os9pathlist[256];
-	double		size;
 
-	fprintf(stderr, "Image path: %s\nLSN: 0x%x\n", p, lsn);
-	return 0;
-	
 	if( strchr(p, ',') != 0 )
 	{
 		fprintf( stderr, "Cannot disk check an OS-9 file, only OS-9 disks.\n" );
@@ -162,10 +156,6 @@ static int do_dirrec(char **argv, char *p, int lsn)
 		fprintf(stderr, "%s: error %d opening '%s'\n", argv[0], ec, os9pathlist);
 		return(ec);
 	}
-
-	OS9StringToCString( os9_path->lsn0->dd_nam );
-	printf("Volume - '%s' in file: %s\n", os9_path->lsn0->dd_nam, p );
-	printf("$%4.4X bytes in allocation map\n", int2(os9_path->lsn0->dd_map) );
 	
 	cluster_size = int2(os9_path->lsn0->dd_bit);
 	
@@ -175,94 +165,15 @@ static int do_dirrec(char **argv, char *p, int lsn)
 		return -1;
 	}
 	
-	if( cluster_size == 1 )
-		printf("%d sector per cluster\n", cluster_size );
-	else
-		printf("%d sectors per cluster\n", cluster_size );
-	
-	printf("$%6.6X total sectors on media\n", int3(os9_path->lsn0->dd_tot) );
-	printf("Sector $%6.6X is start of root directory file descriptor\n", int3(os9_path->lsn0->dd_dir) );
-	
-/* Secondary Allocation map is expanded to assume a cluster size of one.
-   This allows us to track wether a partial cluster is (incorrectly) allocated.
-   It also makes it easier to determine if sectors are allocated multiple times.
-*/
-	secondaryBitmap = (unsigned char *)malloc( (int3(os9_path->lsn0->dd_tot)+1) / 8 );
+	int		bps = os9_path->bps;
+	u_int	dd_tot = int3(os9_path->lsn0->dd_tot);
+	u_int	count = 0;
 
-	if( secondaryBitmap == NULL )
-	{
-		printf("Failed to allocate memory for the secondary bitmap.\n");
-		return -1;
-	}
-
-	memset(secondaryBitmap, 0, (int3(os9_path->lsn0->dd_tot) + 1) / 8);
-
-	/* Allocate LSN0 in secondary bitmap */
-	_os9_allbit(secondaryBitmap, 0, 1);
+	ec = ProcessDirectorySector(os9_path, bps, dd_tot, lsn, p, &count);
 	
-	/* Allocate primary bitmap sectors in secondary bitmap */
-	
-	size = (double)os9_path->bitmap_bytes / (double)os9_path->bps;
-	
-	_os9_allbit(secondaryBitmap, 1, ceil(size) );
-
-	/* Setup questionable cluster array */
-	qCluster = NULL;
-	gBitPaths = NULL;
-	
-	printf("Building secondary allocation map...\n");
-	newName = strcatdup( p, ",.", "" );
-	BuildSecondaryAllocationMap( os9_path, int3(os9_path->lsn0->dd_dir), newName, secondaryBitmap );
-	
-	printf("Comparing primary and secondary allocation maps...\n" );
-	CompareAllocationMap( os9_path->bitmap, secondaryBitmap, int3(os9_path->lsn0->dd_tot), cluster_size );
-	
-	if (pOption == 1)
-	{
-		if (qCluster != NULL)
-		{
-			printf("\nPathlists for questionable clusters\n");
-			PathlistsForQuestionableClusters();
-		}
-	}
-	else
-	{
-		FreeQuestionableMemory();
-	}
-	
-	free(secondaryBitmap);
-	
-	if (sOption == 0)
-	{
-		printf("\n%d previously allocated cluster found\n", gPreAllo);
-		printf("%d clusters in file structure but not in allocation map\n", gFnotA);
-		printf("%d clusters in allocation map but not in file structure\n", gAnotF);
-		printf("%d bad file decriptor sector\n", gBadFD);
-	
-		if (gPreAllo > 0 || gFnotA > 0 || gBadFD > 0)
-		{
-			printf("\n'%s' file structure is NOT intact\n", os9_path->lsn0->dd_nam);
-		}
-		else
-		{
-			printf("\n'%s' file structure is intact\n", os9_path->lsn0->dd_nam);
-		}
-	}
-
 	_os9_close(os9_path);
-	
-	if (gFolderCount == 1)
-	{
-		printf("1 directory\n");
-	}
-	else
-	{
-		printf("%d directories\n", gFolderCount);
-	}
-	
-	printf("%d files\n", gFileCount);
-	
-	return(ec);
+
+	return ec; 
 }
 
 static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, char *path, int k)
