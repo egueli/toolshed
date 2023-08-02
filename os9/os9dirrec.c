@@ -11,6 +11,7 @@
 
 static char *strcatdup( char *orig, char *cat1, char *cat2 );
 static error_code ParseFDSegList(fd_stats *fd, u_int dd_tot, char *path, unsigned char *secondaryBitmap );
+static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_int dd_tot, int dir_lsn, char *path, u_int *count);
 static error_code BuildSecondaryAllocationMap( os9_path_id os9_path, int dir_lsn, char *path, unsigned char *secondaryBitmap );
 static error_code CompareAllocationMap( unsigned char *primaryAlloMap, unsigned char *secondaryBitmap, int dd_map, int cluster_size );
 static void PathlistsForQuestionableClusters();
