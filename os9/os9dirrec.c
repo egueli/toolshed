@@ -10,10 +10,8 @@
 #include <math.h>
 
 static char *strcatdup( char *orig, char *cat1, char *cat2 );
-static error_code ParseFDSegList(fd_stats *fd, u_int dd_tot, char *path, unsigned char *secondaryBitmap );
+static error_code ParseFDSegList(fd_stats *fd, u_int dd_tot, char *path );
 static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_int dd_tot, int dir_lsn, char *path, u_int *count);
-static void AddQuestionableCluster( int cluster );
-static void AddPathToBit( int lsn, char *path );
 static int do_dirrec(char **argv, char *p, int lsn);
 
 
@@ -45,9 +43,6 @@ typedef struct qBitPath_t
 	int					lsn;
 	char				*path;	
 } qBitPath_t;
-
-static qCluster_t	*qCluster;		/* This is an array of clusters that are reported unusual */
-static qBitPath_t	*gBitPaths;		/* Every allocated bit has its path (sometimes more that one) */
 
 int os9dirrec(int argc, char *argv[])
 {
@@ -217,7 +212,7 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEn
 	if ((file_fd->fd_att & FAP_DIR) == 0)
 	{
 		gFileCount++;
-		ParseFDSegList(file_fd, dd_tot, newPath, NULL);
+		ParseFDSegList(file_fd, dd_tot, newPath);
 	}
 	
 	free(file_fd);
@@ -267,12 +262,12 @@ static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_i
 	return ec;
 }
 
-static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path, unsigned char *secondaryBitmap )
+static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path )
 {
 	error_code	ec = 0;
-	u_int  		i = 0, j, once;
+	u_int  		i = 0;
 	Fd_seg		theSeg;
-	u_int 		num, curLSN;
+	u_int 		num;
 
 	while( int3(fd->fd_seg[i].lsn) != 0 )
 	{
@@ -292,44 +287,6 @@ static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path, unsign
 			i++;
 			continue;
 		}
-
-		for(j = 0; j < num; j++)
-		{
-			once = 0;
-			curLSN = int3(theSeg->lsn)+j;
-			
-			/* check for segment elements out of bounds */
-			if( curLSN > dd_tot )
-			{
-				if( once == 0 )
-				{
-					printf("*** Bad FD segment ($%6.6X-$%6.6X) for file: %s (Segement index: %d)\n", int3(theSeg->lsn), int3(theSeg->lsn)+num, path, i );
-					gBadFD++;
-					once = 1;
-					ec = 1;
-				}
-			}
-			else
-			{
-				/* Record path to this bit */
-				AddPathToBit( curLSN, path );
-
-				/* Check if bit is already allocated */
-				if ( _os9_ckbit( secondaryBitmap, curLSN ) != 0 )
-				{
-					/* Whoops, it is already allocated! */
-					printf("Sector $%6.6X was previously allocated\n", curLSN );
-					AddQuestionableCluster( curLSN );
-					gPreAllo++;
-				}
-				else
-				{
-					/* Allocate bit and move on */
-					_os9_allbit( secondaryBitmap, curLSN, 1);
-				}
-			}
-		}
-		
 		i++;
 	}
 	
@@ -354,31 +311,4 @@ static char *strcatdup( char *orig, char *cat1, char *cat2 )
 	}
 	
 	return result;
-}
-
-static void AddQuestionableCluster( int cluster )
-{
-	qCluster_t *curCluster;
-	
-	curCluster = (qCluster_t *)malloc( sizeof(qCluster_t) );
-	if( curCluster == NULL )
-		return;
-	
-	curCluster->lsn = cluster;
-	curCluster->next = qCluster;
-	qCluster = curCluster;
-}
-
-static void AddPathToBit( int lsn, char *path )
-{
-	qBitPath_t	*bitPath;
-	
-	bitPath = (qBitPath_t *)malloc( sizeof (qBitPath_t) );
-	if( bitPath == NULL )
-		return;
-	
-	bitPath->lsn = lsn;
-	bitPath->path = (char *)strdup( path );
-	bitPath->next = gBitPaths;
-	gBitPaths = bitPath;
 }
