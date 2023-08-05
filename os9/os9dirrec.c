@@ -21,6 +21,7 @@ static int do_dirrec(char **argv, char *p, int lsn);
 #define EFD_MOD_HOUR 4
 #define EFD_MOD_MINUTE 5
 #define EFD_MOD_TIME 6
+#define EFD_SEGMENT 20
 
 
 /* Help message */
@@ -236,12 +237,18 @@ static error_code CheckFD(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *p
 
 	ec = CheckFDFields(file_fd);
 
-	// /* If actually a file? */
-	// if ((file_fd->fd_att & FAP_DIR) == 0)
-	// {
-	// 	gFileCount++;
-	// 	ParseFDSegList(file_fd, dd_tot, path);
-	// }
+	if (ec == EFD_OK)
+	{
+		if ((file_fd->fd_att & FAP_DIR))
+		{
+			printf("%s is a directory, skipping (TBD)\n", path);
+		}
+		else
+		{
+			gFileCount++;
+			ParseFDSegList(file_fd, dd_tot, path);
+		}
+	}
 	
 	free(file_fd);
 
@@ -350,9 +357,7 @@ static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path )
 		if( (int3(theSeg->lsn) + num) > dd_tot )
 		{
 			printf("*** Bad FD segment ($%6.6X-$%6.6X) for file: %s (Segement index: %d)\n", int3(theSeg->lsn), int3(theSeg->lsn)+num, path, i );
-			gBadFD++;
-			i++;
-			continue;
+			ec = EFD_SEGMENT;
 		}
 		i++;
 	}
