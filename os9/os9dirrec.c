@@ -14,6 +14,14 @@ static error_code ParseFDSegList(fd_stats *fd, u_int dd_tot, char *path );
 static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_int dd_tot, int dir_lsn, char *path, u_int *count);
 static int do_dirrec(char **argv, char *p, int lsn);
 
+#define EFD_OK 0
+#define EFD_MOD_YEAR 1
+#define EFD_MOD_MONTH 2
+#define EFD_MOD_DAY 3
+#define EFD_MOD_HOUR 4
+#define EFD_MOD_MINUTE 5
+#define EFD_MOD_TIME 6
+
 
 /* Help message */
 static char const * const helpMessage[] =
@@ -163,31 +171,31 @@ static int do_dirrec(char **argv, char *p, int lsn)
 	return ec; 
 }
 
-static u_int CheckFDFields(fd_stats *file_fd)
+static error_code CheckFDFields(fd_stats *file_fd)
 {
 	u_int mod_year = 1900 + file_fd->fd_dat[0];
 	if (mod_year >= 2000) {
-		return 0;
+		return EFD_MOD_YEAR;
 	}
 	
 	u_int mod_month = file_fd->fd_dat[1];
 	if (mod_month > 12) {
-		return 0;
+		return EFD_MOD_MONTH;
 	}
 
 	u_int mod_day = file_fd->fd_dat[2];
 	if (mod_day > 31) {
-		return 0;
+		return EFD_MOD_DAY;
 	}
 
 	u_int mod_hour = file_fd->fd_dat[3];
 	if (mod_hour > 24) {
-		return 0;
+		return EFD_MOD_HOUR;
 	}
 
 	u_int mod_minute = file_fd->fd_dat[4];
 	if (mod_minute > 60) {
-		return 0;
+		return EFD_MOD_MINUTE;
 	}
 
 	struct tm mod_tm;
@@ -201,17 +209,17 @@ static u_int CheckFDFields(fd_stats *file_fd)
 
 	time_t mod_time = mktime(&mod_tm);
 	if (mod_time == -1) {
-		return 0;
+		return EFD_MOD_TIME;
 	}
 
-	return 1;
+	return EFD_OK;
 }
 
-static u_int IsFDValid(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *path)
+static error_code CheckFD(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *path)
 {
 	int			bps = os9_path->bps;
 	fd_stats    *file_fd = (fd_stats *)malloc( bps );
-	u_int		valid = 0;
+	error_code	ec = EFD_OK;
 
 	if( file_fd == NULL )
 	{
@@ -226,7 +234,7 @@ static u_int IsFDValid(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *path
 		exit(-1);
 	}
 
-	valid = CheckFDFields(file_fd);
+	ec = CheckFDFields(file_fd);
 
 	// /* If actually a file? */
 	// if ((file_fd->fd_att & FAP_DIR) == 0)
@@ -237,7 +245,7 @@ static u_int IsFDValid(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *path
 	
 	free(file_fd);
 
-	return valid;
+	return ec;
 }
 
 static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, char *path)
@@ -261,21 +269,22 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEn
 	}
 
 	newPath = strcatdup(path, "/", (char *)dEnt->name);
-	
-	if (int3(dEnt->lsn) > dd_tot)
+	unsigned int lsn = int3(dEnt->lsn);
+	if (lsn > dd_tot)
 	{
-		printf("File: %s, contains bad LSN\n", newPath);
+		printf("Direntry %s: contains bad LSN\n", newPath);
 		free(newPath);
 		return 0;
 	}
 
-	if (IsFDValid(os9_path, dd_tot, int3(dEnt->lsn), newPath))
+	error_code result = CheckFD(os9_path, dd_tot, lsn, newPath);
+	if (!result)
 	{
-		printf("Directory entry %s has a valid FD\n", newPath);
+		printf("Direntry %s (LSN: 0x%x) seems valid\n", newPath, lsn);
 	}
 	else
 	{
-		printf("Directory entry %s has an invalid FD\n", newPath);
+		printf("Direntry %s (LSN: 0x%x): invalid FD: error code %d\n", newPath, lsn, result);
 	}
 
 	free(newPath);
