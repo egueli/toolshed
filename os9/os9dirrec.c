@@ -163,10 +163,85 @@ static int do_dirrec(char **argv, char *p, int lsn)
 	return ec; 
 }
 
-static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, char *path, int k)
+static u_int CheckFDFields(fd_stats *file_fd)
+{
+	u_int mod_year = 1900 + file_fd->fd_dat[0];
+	if (mod_year >= 2000) {
+		return 0;
+	}
+	
+	u_int mod_month = file_fd->fd_dat[1];
+	if (mod_month > 12) {
+		return 0;
+	}
+
+	u_int mod_day = file_fd->fd_dat[2];
+	if (mod_day > 31) {
+		return 0;
+	}
+
+	u_int mod_hour = file_fd->fd_dat[3];
+	if (mod_hour > 24) {
+		return 0;
+	}
+
+	u_int mod_minute = file_fd->fd_dat[4];
+	if (mod_minute > 60) {
+		return 0;
+	}
+
+	struct tm mod_tm;
+	mod_tm.tm_year = mod_year - 1900;
+	mod_tm.tm_mon = mod_month;
+	mod_tm.tm_mday = mod_day;
+	mod_tm.tm_hour = mod_hour;
+	mod_tm.tm_min = mod_minute;
+	mod_tm.tm_sec = 0;
+	mod_tm.tm_isdst = -1;
+
+	time_t mod_time = mktime(&mod_tm);
+	if (mod_time == -1) {
+		return 0;
+	}
+
+	return 1;
+}
+
+static u_int IsFDValid(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *path)
 {
 	int			bps = os9_path->bps;
-	fd_stats    *file_fd;
+	fd_stats    *file_fd = (fd_stats *)malloc( bps );
+	u_int		valid = 0;
+
+	if( file_fd == NULL )
+	{
+		printf("Out of memory, terminating (003).\n");
+		exit(-1);
+	}
+	
+	if( read_lsn(os9_path, lsn, file_fd ) != bps )
+	{
+		printf("Sector wrong size, terminating (003).\n" );
+		printf("LSN: %d\n", lsn );
+		exit(-1);
+	}
+
+	valid = CheckFDFields(file_fd);
+
+	// /* If actually a file? */
+	// if ((file_fd->fd_att & FAP_DIR) == 0)
+	// {
+	// 	gFileCount++;
+	// 	ParseFDSegList(file_fd, dd_tot, path);
+	// }
+	
+	free(file_fd);
+
+	return valid;
+}
+
+static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, char *path, int k)
+{
 	char		*newPath;
 
 	if (dEnt[k].name[0] == 0)
@@ -194,28 +269,15 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEn
 		return 0;
 	}
 
-	file_fd = (fd_stats *)malloc( bps );
-	if( file_fd == NULL )
+	if (IsFDValid(os9_path, dd_tot, int3(dEnt[k].lsn), newPath))
 	{
-		printf("Out of memory, terminating (003).\n");
-		exit(-1);
+		printf("Directory entry %s has a valid FD\n", newPath);
 	}
-	
-	if( read_lsn(os9_path, int3(dEnt[k].lsn), file_fd ) != bps )
+	else
 	{
-		printf("Sector wrong size, terminating (003).\n" );
-		printf("LSN: %d\n", int3(dEnt[k].lsn) );
-		exit(-1);
+		printf("Directory entry %s has an invalid FD\n", newPath);
 	}
 
-	/* If actually a file? */
-	if ((file_fd->fd_att & FAP_DIR) == 0)
-	{
-		gFileCount++;
-		ParseFDSegList(file_fd, dd_tot, newPath);
-	}
-	
-	free(file_fd);
 	free(newPath);
 
 	return 0;
@@ -250,11 +312,7 @@ static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_i
 			break;
 		}
 
-		ec = ProcessDirectoryEntry(os9_path, dEnt, dd_tot, path, k);
-		if (ec != 0)
-		{
-			break;
-		}
+		ProcessDirectoryEntry(os9_path, dEnt, dd_tot, path, k);
 	}
 
 	free(dEnt);
