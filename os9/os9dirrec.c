@@ -240,36 +240,36 @@ static u_int IsFDValid(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *path
 	return valid;
 }
 
-static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, char *path, int k)
+static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot, char *path)
 {
 	char		*newPath;
 
-	if (dEnt[k].name[0] == 0)
+	if (dEnt->name[0] == 0)
 	{
 		return(0);
 	}
 
-	OS9StringToCString(dEnt[k].name);
+	OS9StringToCString(dEnt->name);
 	
-	if (strcmp((char *)dEnt[k].name, ".") == 0)
+	if (strcmp((char *)dEnt->name, ".") == 0)
 	{
 		return(0);
 	}
-	if (strcmp((char *)dEnt[k].name, "..") == 0)
+	if (strcmp((char *)dEnt->name, "..") == 0)
 	{
 		return(0);
 	}
 
-	newPath = strcatdup(path, "/", (char *)dEnt[k].name);
+	newPath = strcatdup(path, "/", (char *)dEnt->name);
 	
-	if (int3(dEnt[k].lsn) > dd_tot)
+	if (int3(dEnt->lsn) > dd_tot)
 	{
 		printf("File: %s, contains bad LSN\n", newPath);
 		free(newPath);
 		return 0;
 	}
 
-	if (IsFDValid(os9_path, dd_tot, int3(dEnt[k].lsn), newPath))
+	if (IsFDValid(os9_path, dd_tot, int3(dEnt->lsn), newPath))
 	{
 		printf("Directory entry %s has a valid FD\n", newPath);
 	}
@@ -312,7 +312,7 @@ static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_i
 			break;
 		}
 
-		ProcessDirectoryEntry(os9_path, dEnt, dd_tot, path, k);
+		ProcessDirectoryEntry(os9_path, &dEnt[k], dd_tot, path);
 	}
 
 	free(dEnt);
