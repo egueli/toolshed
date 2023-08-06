@@ -10,7 +10,7 @@
 #include <math.h>
 
 static char *strcatdup( char *orig, char *cat1, char *cat2 );
-static error_code ParseFDSegList(fd_stats *fd, u_int dd_tot, char *path );
+static error_code ParseFDSegList(fd_stats *fd, u_int dd_tot, char *path, u_int bps );
 static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_int dd_tot, int dir_lsn, char *path, u_int *count);
 static int do_dirrec(char **argv, char *p, int lsn);
 
@@ -22,6 +22,7 @@ static int do_dirrec(char **argv, char *p, int lsn);
 #define EFD_MOD_MINUTE 5
 #define EFD_MOD_TIME 6
 #define EFD_SEGMENT 20
+#define EFD_SEGMENT_SIZE 21
 
 
 /* Help message */
@@ -246,7 +247,7 @@ static error_code CheckFD(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *p
 		else
 		{
 			gFileCount++;
-			ParseFDSegList(file_fd, dd_tot, path);
+			ParseFDSegList(file_fd, dd_tot, path, bps);
 		}
 	}
 	
@@ -336,12 +337,17 @@ static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_i
 	return ec;
 }
 
-static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path )
+static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path, u_int bps )
 {
-	error_code	ec = 0;
+	error_code	ec = EFD_OK;
 	u_int  		i = 0;
 	Fd_seg		theSeg;
 	u_int 		num;
+
+	u_int 		size = int4(fd->fd_siz);
+	u_int		min_sectors = (size / bps) + (size % bps != 0); // https://stackoverflow.com/a/14878734/327648
+
+	u_int		seg_sectors = 0;
 
 	while( int3(fd->fd_seg[i].lsn) != 0 )
 	{
@@ -353,6 +359,7 @@ static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path )
 
 		theSeg = &(fd->fd_seg[i]);
 		num = int2(theSeg->num);
+		seg_sectors += num;
 
 		if( (int3(theSeg->lsn) + num) > dd_tot )
 		{
@@ -362,6 +369,14 @@ static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path )
 		i++;
 	}
 	
+	if (ec == EFD_OK)
+	{
+		if (seg_sectors < min_sectors)
+		{
+			ec = EFD_SEGMENT_SIZE;
+		}
+	}
+
 	return ec;
 }
 
