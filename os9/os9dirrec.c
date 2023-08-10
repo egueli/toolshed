@@ -173,6 +173,68 @@ static int do_dirrec(char **argv, char *p, int lsn)
 	return ec; 
 }
 
+static error_code SaveFDToFile(os9_path_id os9_path, fd_stats *fd, char *path, u_int bps)
+{
+	char *filename = strrchr(path, '/');
+	if (!filename || strlen(filename) < 2)
+	{
+		return 1;
+	}
+
+	FILE *out = fopen(filename + 1, "wb");
+	if (!out)
+	{
+		return 2;
+	}
+	
+	u_int		remaining = int4(fd->fd_siz);
+	u_int 		segment = 0;
+	for( ; segment < NUM_SEGS && remaining > 0; segment++)
+	{
+		u_int segment_lsn = int3(fd->fd_seg[segment].lsn);
+		if (segment_lsn == 0)
+		{
+			break;
+		}
+
+		Fd_seg theSeg = &(fd->fd_seg[segment]);
+		u_int num = int2(theSeg->num);
+
+		u_char *buffer = (u_char *)malloc( bps );
+
+		for (int i = 0; i <= num && remaining > 0; i++)
+		{
+			u_int lsn = segment_lsn + i;
+
+			if (read_lsn(os9_path, lsn, buffer) != bps)
+			{
+				printf("Sector wrong size, terminating\n" );
+				exit(-1);
+			}
+
+			u_int toWrite = remaining > bps ? bps : remaining;
+			size_t written = fwrite(buffer, sizeof buffer[0], toWrite, out);
+			if (written != toWrite) {
+				printf("Unable to write to file\n");
+				exit(-1);
+			}
+
+			remaining -= written;
+		}
+
+		free(buffer);
+	}
+
+	fclose(out);
+
+	if (segment == NUM_SEGS)
+	{
+		return 3;
+	}
+
+	return EFD_OK;
+}
+
 static error_code CheckFDFields(fd_stats *file_fd)
 {
 	u_int mod_year = 1900 + file_fd->fd_dat[0];
@@ -247,7 +309,14 @@ static error_code CheckFD(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *p
 		else
 		{
 			gFileCount++;
-			ParseFDSegList(file_fd, dd_tot, path, bps);
+			ec = ParseFDSegList(file_fd, dd_tot, path, bps);
+			if (ec == EFD_OK) {
+				ec = SaveFDToFile(os9_path, file_fd, path, bps);
+				if (ec != 0)
+				{
+					fprintf(stderr, "Failed to save to file: error code %d\n", ec);
+				}
+			}
 		}
 	}
 	
