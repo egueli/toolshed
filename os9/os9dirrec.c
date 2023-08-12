@@ -108,7 +108,7 @@ int os9dirrec(int argc, char *argv[])
 
 	if (ec != 0)
 	{
-		fprintf(stderr, "%s: error %d opening '%s'\n", argv[0], ec, p);
+		fprintf(stderr, "%s: error %d processing '%s'\n", argv[0], ec, p);
 		return(ec);
 	}
 
@@ -150,7 +150,7 @@ static int do_dirrec(char **argv, char *p, int lsn)
 	ec = _os9_open(&os9_path, os9pathlist, FAM_READ);
 	if (ec != 0)
 	{
-		fprintf(stderr, "%s: error %d opening '%s'\n", argv[0], ec, os9pathlist);
+		fprintf(stderr, "%s: error %d while trying to open '%s'\n", argv[0], ec, os9pathlist);
 		return(ec);
 	}
 	
