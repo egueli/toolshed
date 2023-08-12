@@ -369,6 +369,100 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEn
 	return 0;
 }
 
+// static error_code ParseDirectoryEntryName(u_char *buffer, u_char *name)
+static error_code CheckDirectoryEntryName(u_char *buffer)
+{
+
+	u_char first = buffer[0];
+	// name[0] = first & 0x7f;
+
+	if (first == '\0')
+	{
+		// deleted file, skip it for now.
+		return 0;
+	}
+
+	u_int high = (first & 0x80);
+	if (high)
+	{
+		// it's a 1-char file
+		// name[1] = '\0';
+		return 0;
+	}
+
+	// now reading the second to last character of the file name
+	u_int terminated = 0;
+	u_int b;
+	for (b = 1; b < 29; b++)
+	{
+		u_char ch = buffer[b];
+		if (ch == '\0')
+		{
+			return 1; // name abrupted (got null byte without a high bit first)
+		}
+		else
+		{
+			// name[b] = ch & 0x7f;
+			u_int high = (ch & 0x80);
+			if (high)
+			{
+				// name[b + 1] = '\0';
+				terminated = 1;
+				break;
+			}
+		}
+	}
+
+	if (b == 29 && !terminated)
+	{
+		// 29 ASCII bytes and no termination. We might be
+		// reading a text file. Definitely not an RBF directory entry.
+		return 2;
+	}
+
+	// now reading the padding bytes, they must all be null.
+	u_int p;
+	for (p = b + 1; p < 29; p++)
+	{
+		u_char ch = buffer[p];
+		if (ch != '\0')
+		{
+			return 3;
+		}
+	}
+
+	return 0;
+}
+
+static error_code CheckValidDirectorySector(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot)
+{
+	u_int           k;
+	int			    bps = os9_path->bps;
+	for (k = 0; k < (bps / sizeof(os9_dir_entry)); k++)
+	{
+		os9_dir_entry *thisDEnt = &dEnt[k];
+
+		// char name[30]; // 29 bytes + null terminator
+
+		u_char *buffer = (u_char *)thisDEnt;
+		// error_code ec = ParseDirectoryEntryName(buffer, name);
+		error_code ec = CheckDirectoryEntryName(buffer);
+
+		if (ec != 0)
+		{
+			return ec;
+		}
+		
+		u_int lsn = int3(buffer + 29);
+		if (lsn >= dd_tot)
+		{
+			return 4;
+		}
+	}
+
+	return 0;
+}
+
 static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_int dd_tot, int dir_lsn, char *path, u_int *count)
 {
 	error_code 	    ec = 0;
@@ -390,15 +484,23 @@ static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_i
 		exit(-1);
 	}
 
-	for (k = 0; k < (bps / sizeof(os9_dir_entry)); k++)
+	ec = CheckValidDirectorySector(os9_path, dEnt, dd_tot);
+	if (ec != 0)
 	{
-		*count += sizeof(os9_dir_entry);
-		if (*count > fd_siz)
+		printf("This sector does not look like a directory (error code %d)\n", ec);
+	}
+	else
+	{
+		for (k = 0; k < (bps / sizeof(os9_dir_entry)); k++)
 		{
-			break;
-		}
+			*count += sizeof(os9_dir_entry);
+			if (*count > fd_siz)
+			{
+				break;
+			}
 
-		ProcessDirectoryEntry(os9_path, &dEnt[k], dd_tot, path);
+			ProcessDirectoryEntry(os9_path, &dEnt[k], dd_tot, path);
+		}
 	}
 
 	free(dEnt);
