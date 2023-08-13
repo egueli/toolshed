@@ -434,7 +434,7 @@ static error_code CheckDirectoryEntryName(u_char *buffer)
 	return 0;
 }
 
-static error_code CheckValidDirectorySector(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot)
+error_code CheckValidDirectorySector(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot)
 {
 	u_int           k;
 	int			    bps = os9_path->bps;

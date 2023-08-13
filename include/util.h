@@ -20,6 +20,7 @@ extern "C" {
 #include <errno.h>
 #include <time.h>
 #include <cocotypes.h>
+#include <os9path.h>
 
 /* Function prototypes for supported OS-9 commands are here */
 int os9attr(int, char **);
@@ -44,6 +45,9 @@ int os9modbust(int, char **);
 int os9padrom(int, char **);
 int os9rename(int, char **);
 int os9rdump(int, char **);
+
+/* Function prototypes for OS-9 common functions */
+error_code CheckValidDirectorySector(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot);
 
 int StrToInt(char *s);
 #ifdef BDS
