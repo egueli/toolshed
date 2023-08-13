@@ -31,6 +31,7 @@ int os9del(int, char **);
 int os9deldir(int, char **);
 int os9dir(int, char **);
 int os9dirrec(int, char **);
+int os9dirscan(int, char **);
 int os9dsave(int, char **);
 int os9dump(int, char **);
 int os9format(int, char **);
