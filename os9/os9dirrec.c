@@ -369,9 +369,9 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEn
 	return 0;
 }
 
-// static error_code ParseDirectoryEntryName(u_char *buffer, u_char *name)
-static error_code CheckDirectoryEntryName(u_char *buffer)
+static error_code ParseDirectoryEntryName(u_char *buffer, char *name)
 {
+	memset(name, '\0', 30);
 	/*
 	Three possibilities:
 	- entry is empty: all 32 bytes are zeros;
@@ -385,11 +385,11 @@ static error_code CheckDirectoryEntryName(u_char *buffer)
 
 	u_int b;
 	u_int terminated = 0;
-	// name[0] = first & 0x7f;
 
 	if (buffer[0] != '\0')
 	{
 		b = 0;
+		name[0] = buffer[0] & 0x7f;
 	}
 	else
 	{
@@ -402,6 +402,7 @@ static error_code CheckDirectoryEntryName(u_char *buffer)
 		else
 		{
 			// Deleted file entry.
+			name[0] = '?';
 			terminated = 0;
 		}
 	}
@@ -416,11 +417,10 @@ static error_code CheckDirectoryEntryName(u_char *buffer)
 		}
 		else
 		{
-			// name[b] = ch & 0x7f;
+			name[b] = ch & 0x7f;
 			u_int high = (ch & 0x80);
 			if (high)
 			{
-				// name[b + 1] = '\0';
 				terminated = 1;
 			}
 		}
@@ -451,15 +451,15 @@ error_code CheckValidDirectorySector(os9_path_id os9_path, os9_dir_entry *dEnt, 
 {
 	u_int           k;
 	int			    bps = os9_path->bps;
+	int             entriesFound = 0;
 	for (k = 0; k < (bps / sizeof(os9_dir_entry)); k++)
 	{
 		os9_dir_entry *thisDEnt = &dEnt[k];
 
-		// char name[30]; // 29 bytes + null terminator
+		char name[30]; // 29 bytes + null terminator
 
 		u_char *buffer = (u_char *)thisDEnt;
-		// error_code ec = ParseDirectoryEntryName(buffer, name);
-		error_code ec = CheckDirectoryEntryName(buffer);
+		error_code ec = ParseDirectoryEntryName(buffer, name);
 
 		if (ec != 0)
 		{
@@ -471,6 +471,17 @@ error_code CheckValidDirectorySector(os9_path_id os9_path, os9_dir_entry *dEnt, 
 		{
 			return 4;
 		}
+
+		if (strlen(name) > 0)
+		{
+			entriesFound++;
+		}
+	}
+
+	if (entriesFound == 0)
+	{
+		// A directory sector made of empty entries is not valid.
+		return 5;
 	}
 
 	return 0;
