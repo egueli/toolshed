@@ -372,28 +372,42 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEn
 // static error_code ParseDirectoryEntryName(u_char *buffer, u_char *name)
 static error_code CheckDirectoryEntryName(u_char *buffer)
 {
+	/*
+	Three possibilities:
+	- entry is empty: all 32 bytes are zeros;
+	- entry is of a deleted file: first byte is zero, (0..N) nonzero whose
+	  last character has the highest bit set, then (29-N) zero bytes, then
+	  a valid LSN number i.e. lower than the disk size;
+	- entry is of a regular file: (0..N) nonzero bytes whose last character
+	  has the highest bit set, then (29-N) zero bytes, then a valid LSN
+	  number.
+	*/
 
-	u_char first = buffer[0];
+	u_int b;
+	u_int terminated = 0;
 	// name[0] = first & 0x7f;
 
-	if (first == '\0')
+	if (buffer[0] != '\0')
 	{
-		// deleted file, skip it for now.
-		return 0;
+		b = 0;
+	}
+	else
+	{
+		b = 1;
+		if (buffer[1] == '\0')
+		{
+			// Empty entry.
+			terminated = 1;
+		}
+		else
+		{
+			// Deleted file entry.
+			terminated = 0;
+		}
 	}
 
-	u_int high = (first & 0x80);
-	if (high)
-	{
-		// it's a 1-char file
-		// name[1] = '\0';
-		return 0;
-	}
-
-	// now reading the second to last character of the file name
-	u_int terminated = 0;
-	u_int b;
-	for (b = 1; b < 29; b++)
+	// now reading the characters of the file name
+	for (; !terminated && b < 29; b++)
 	{
 		u_char ch = buffer[b];
 		if (ch == '\0')
@@ -408,7 +422,6 @@ static error_code CheckDirectoryEntryName(u_char *buffer)
 			{
 				// name[b + 1] = '\0';
 				terminated = 1;
-				break;
 			}
 		}
 	}
