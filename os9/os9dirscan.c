@@ -17,7 +17,8 @@ static char const * const helpMessage[] =
 {
 	"Syntax: dirscan {<disk>}\n",
 	"Usage:  Scan disk for directory entries sectors,\n",
-	"and print their LSNs and file entries.\n",
+	"and print their LSNs that can be directly fed to\n",
+	"\"dirrec\".\n",
 	NULL
 };
 
@@ -155,7 +156,7 @@ static int do_dirscan(char **argv, char *p)
 	{
 		u_int result = ProcessDirectorySector(os9_path, bps, dd_tot, lsn, p, &count);
 		if (result == 0) {
-			printf("LSN 0x%x has directory entries\n", lsn);
+			printf("0x%x\n", lsn);
 		}
 	}
 	
