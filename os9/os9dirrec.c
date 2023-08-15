@@ -24,6 +24,7 @@ static int do_dirrec(char **argv, char *p, int lsn);
 #define EFD_SEGMENT 20
 #define EFD_SEGMENT_SIZE 21
 
+static int dryRun = 0;
 
 /* Help message */
 static char const * const helpMessage[] =
@@ -31,6 +32,8 @@ static char const * const helpMessage[] =
 	"Syntax: dirrec {<disk>} {<lsn>}\n",
 	"Usage:  Reads directory entries from an arbitrary sector in a disk\n",
 	"image, and tries to recover files.\n",
+	"Options:\n",
+	"     -n    dry run (do not save files)\n",
 	NULL
 };
 
@@ -70,6 +73,10 @@ int os9dirrec(int argc, char *argv[])
 			{
 				switch(*p)
 				{
+					case 'n':
+						dryRun = 1;
+						break;
+
 					case '?':
 					case 'h':
 						show_help(helpMessage);
@@ -84,6 +91,7 @@ int os9dirrec(int argc, char *argv[])
 	}
 
 	/* walk command line for pathnames */
+	p = NULL;
 	for (i = 1; i < argc; i++)
 	{
 		if (argv[i][0] == '-')
@@ -314,7 +322,7 @@ static error_code CheckFD(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *p
 		{
 			gFileCount++;
 			ec = ParseFDSegList(file_fd, dd_tot, path, bps);
-			if (ec == EFD_OK) {
+			if (ec == EFD_OK && !dryRun) {
 				ec = SaveFDToFile(os9_path, file_fd, path, bps);
 				if (ec != 0)
 				{
