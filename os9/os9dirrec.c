@@ -25,6 +25,7 @@ static int do_dirrec(char **argv, char *p, int lsn);
 #define EFD_SEGMENT_SIZE 21
 
 static int dryRun = 0;
+static int verbose = 0;
 
 /* Help message */
 static char const * const helpMessage[] =
@@ -34,6 +35,7 @@ static char const * const helpMessage[] =
 	"image, and tries to recover files.\n",
 	"Options:\n",
 	"     -n    dry run (do not save files)\n",
+	"     -v    verbose (by default, only print files that would be saved)\n",
 	NULL
 };
 
@@ -75,6 +77,10 @@ int os9dirrec(int argc, char *argv[])
 				{
 					case 'n':
 						dryRun = 1;
+						break;
+
+					case 'v':
+						verbose = 1;
 						break;
 
 					case '?':
@@ -316,7 +322,10 @@ static error_code CheckFD(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *p
 	{
 		if ((file_fd->fd_att & FAP_DIR))
 		{
-			printf("%s is a directory, skipping (TBD)\n", path);
+			if (verbose)
+			{
+				printf("%s is a directory, skipping (TBD)\n", path);
+			}
 		}
 		else
 		{
@@ -361,19 +370,31 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, os9_dir_entry *dEn
 	unsigned int lsn = int3(dEnt->lsn);
 	if (lsn > dd_tot)
 	{
-		printf("Direntry %s: contains bad LSN\n", newPath);
+		if (verbose)
+		{
+			printf("Direntry %s: contains bad LSN\n", newPath);
+		}
 		free(newPath);
 		return 0;
 	}
 
 	error_code result = CheckFD(os9_path, dd_tot, lsn, newPath);
-	if (!result)
+	if (verbose)
 	{
-		printf("Direntry %s (LSN: 0x%x) seems valid\n", newPath, lsn);
+		if (!result)
+		{
+			printf("Direntry %s (LSN: 0x%x) seems valid\n", (char *)dEnt->name, lsn);
+		}
+		else
+		{
+			printf("Direntry %s (LSN: 0x%x): invalid FD: error code %d\n", newPath, lsn, result);
+		}
 	}
-	else
-	{
-		printf("Direntry %s (LSN: 0x%x): invalid FD: error code %d\n", newPath, lsn, result);
+	else {
+		if (!result)
+		{
+			printf("%s\n", (char *)dEnt->name);
+		}
 	}
 
 	free(newPath);
