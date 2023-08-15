@@ -70,7 +70,11 @@ int os9dirrec(int argc, char *argv[])
 			{
 				switch(*p)
 				{
-					/* no options currently implemented */	
+					case '?':
+					case 'h':
+						show_help(helpMessage);
+						return(0);
+
 					default:
 						fprintf(stderr, "%s: unknown option '%c'\n", argv[0], *p);
 						return(0);
