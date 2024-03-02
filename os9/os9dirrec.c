@@ -215,7 +215,7 @@ error_code SaveFDToFile(os9_path_id os9_path, fd_stats *fd, char *path, u_int bp
 
 			if (read_lsn(os9_path, lsn, buffer) != bps)
 			{
-				printf("Sector wrong size, terminating\n" );
+				printf("Sector (0x%06x) wrong size, terminating\n", lsn );
 				exit(-1);
 			}
 
@@ -244,6 +244,11 @@ error_code SaveFDToFile(os9_path_id os9_path, fd_stats *fd, char *path, u_int bp
 
 error_code CheckFDFields(fd_stats *file_fd)
 {
+	if (file_fd->fd_att == 0)
+	{
+		return EFD_ATTR;
+	}
+	
 	u_int mod_year = 1900 + file_fd->fd_dat[0];
 	if (mod_year >= 2000) {
 		return EFD_MOD_YEAR;

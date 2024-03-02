@@ -58,7 +58,8 @@ error_code CheckValidDirectorySector(os9_path_id os9_path, os9_dir_entry *dEnt, 
 #define EFD_MOD_HOUR 4
 #define EFD_MOD_MINUTE 5
 #define EFD_MOD_TIME 6
-#define EFD_SEGMENT 0
+#define EFD_SEGMENT 7
+#define EFD_ATTR 8
 #define EFD_SEGMENT_SIZE 21
 error_code CheckFDFields(fd_stats *file_fd);
 error_code ParseFDSegList_simple( fd_stats *fd, u_int dd_tot, char *path, u_int bps );
