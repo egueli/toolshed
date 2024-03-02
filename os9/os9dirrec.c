@@ -10,19 +10,8 @@
 #include <math.h>
 
 static char *strcatdup( char *orig, char *cat1, char *cat2 );
-static error_code ParseFDSegList(fd_stats *fd, u_int dd_tot, char *path, u_int bps );
 static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_int dd_tot, int dir_lsn, char *path, u_int *count);
 static int do_dirrec(char **argv, char *p, int lsn);
-
-#define EFD_OK 0
-#define EFD_MOD_YEAR 1
-#define EFD_MOD_MONTH 2
-#define EFD_MOD_DAY 3
-#define EFD_MOD_HOUR 4
-#define EFD_MOD_MINUTE 5
-#define EFD_MOD_TIME 6
-#define EFD_SEGMENT 20
-#define EFD_SEGMENT_SIZE 21
 
 static int dryRun = 0;
 static int verbose = 0;
@@ -191,7 +180,7 @@ static int do_dirrec(char **argv, char *p, int lsn)
 	return ec; 
 }
 
-static error_code SaveFDToFile(os9_path_id os9_path, fd_stats *fd, char *path, u_int bps)
+error_code SaveFDToFile(os9_path_id os9_path, fd_stats *fd, char *path, u_int bps)
 {
 	char *filename = strrchr(path, '/');
 	if (!filename || strlen(filename) < 2)
@@ -253,7 +242,7 @@ static error_code SaveFDToFile(os9_path_id os9_path, fd_stats *fd, char *path, u
 	return EFD_OK;
 }
 
-static error_code CheckFDFields(fd_stats *file_fd)
+error_code CheckFDFields(fd_stats *file_fd)
 {
 	u_int mod_year = 1900 + file_fd->fd_dat[0];
 	if (mod_year >= 2000) {
@@ -330,7 +319,7 @@ static error_code CheckFD(os9_path_id os9_path, u_int dd_tot, u_int lsn, char *p
 		else
 		{
 			gFileCount++;
-			ec = ParseFDSegList(file_fd, dd_tot, path, bps);
+			ec = ParseFDSegList_simple(file_fd, dd_tot, path, bps);
 			if (ec == EFD_OK && !dryRun) {
 				ec = SaveFDToFile(os9_path, file_fd, path, bps);
 				if (ec != 0)
@@ -565,7 +554,7 @@ static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_i
 	return ec;
 }
 
-static error_code ParseFDSegList( fd_stats *fd, u_int dd_tot, char *path, u_int bps )
+error_code ParseFDSegList_simple( fd_stats *fd, u_int dd_tot, char *path, u_int bps )
 {
 	error_code	ec = EFD_OK;
 	u_int  		i = 0;

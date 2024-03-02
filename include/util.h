@@ -51,6 +51,20 @@ int os9rdump(int, char **);
 /* Function prototypes for OS-9 common functions */
 error_code CheckValidDirectorySector(os9_path_id os9_path, os9_dir_entry *dEnt, u_int dd_tot);
 
+#define EFD_OK 0
+#define EFD_MOD_YEAR 1
+#define EFD_MOD_MONTH 2
+#define EFD_MOD_DAY 3
+#define EFD_MOD_HOUR 4
+#define EFD_MOD_MINUTE 5
+#define EFD_MOD_TIME 6
+#define EFD_SEGMENT 0
+#define EFD_SEGMENT_SIZE 21
+error_code CheckFDFields(fd_stats *file_fd);
+error_code ParseFDSegList_simple( fd_stats *fd, u_int dd_tot, char *path, u_int bps );
+error_code SaveFDToFile(os9_path_id os9_path, fd_stats *fd, char *path, u_int bps);
+
+
 int StrToInt(char *s);
 #ifdef BDS
 int strcasecmp(char *s1, char *s2);
