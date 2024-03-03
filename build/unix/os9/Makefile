@@ -8,7 +8,8 @@ LDFLAGS	+= -L../libtoolshed -L../libcecb -L../libcoco -L../libnative -L../libdec
 os9:	os9copy.o os9dsave.o os9gen.o os9modbust.o os9dcheck.o os9dump.o \
 	os9id.o os9padrom.o os9_main.o os9del.o os9format.o os9ident.o \
 	os9rename.o os9attr.o os9deldir.o os9free.o os9list.o os9cmp.o \
-	os9dir.o os9fstat.o os9makdir.o os9dirrec.o os9dirscan.o os9fscan.o
+	os9dir.o os9fstat.o os9makdir.o os9dirrec.o os9dirscan.o os9fscan.o \
+	os9ftree.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 clean:

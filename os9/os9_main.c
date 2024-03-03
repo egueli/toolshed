@@ -50,6 +50,7 @@ static struct cmdtbl table[] =
     {os9dump,	"dump"},
     {os9format,	"format"},
     {os9free,	"free"},
+    {os9ftree,  "ftree"},
     {os9fscan,  "fscan"},
     {os9fstat,	"fstat"},
     {os9gen,	"gen"},
