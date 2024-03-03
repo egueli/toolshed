@@ -184,7 +184,8 @@ static error_code ProcessFileDescriptor(os9_path_id os9_path, u_int lsn, char *p
 	}
 
 	char out_file[32];
-	int cx = snprintf(out_file, 32, "./lsn_%06x", lsn);
+	char* file_format = (fd.fd_att & FAP_DIR) ? "./lsn_%06x.dir" : "./lsn_%06x.file";
+	int cx = snprintf(out_file, 32, file_format, lsn);
 	if (cx <= 0 || cx > 32)
 	{
 		fprintf(stderr, "unable to make file name\n");
