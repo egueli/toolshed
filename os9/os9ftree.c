@@ -9,8 +9,12 @@
 #include <cocopath.h>
 #include <string.h>
 #include <math.h>
+#include <glob.h>
+#include <fcntl.h>
 
 static int do_ftree(char **argv, char *p);
+static error_code ProcessScannedDirectories();
+static error_code ProcessRawDirectory(const char* name);
 
 /* Help message */
 static char const * const helpMessage[] =
@@ -118,7 +122,32 @@ static int do_ftree(char **argv, char *p)
 		return -1;
 	}
 
-	// TODO ftree implementation	
+	ec = ProcessScannedDirectories();
 
     return ec;
+}
+
+static error_code ProcessScannedDirectories()
+{
+    glob_t globbuf;
+
+    glob("*.dir", 0, NULL, &globbuf);
+
+	int i;
+	for (i = 0; i < globbuf.gl_pathc; i++)
+    {
+		ProcessRawDirectory(globbuf.gl_pathv[i]);
+    }
+
+    globfree(&globbuf);
+
+	return 0;
+}
+
+static error_code ProcessRawDirectory(const char* name)
+{
+	printf("processing raw directory %s\n", name);
+	//int fd = open(globbuf.gl_pathv[0], O_RDONLY);
+
+	return 0;
 }
