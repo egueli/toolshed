@@ -164,11 +164,26 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 	for (k = 0; k < (size / sizeof(os9_dir_entry)); k++)
 	{
 		os9_dir_entry *thisDEnt = ((os9_dir_entry*) dir_data) + k;
+
+		if (thisDEnt->name[0] == '\0' && thisDEnt->name[1] != '\0')
+		{
+			thisDEnt->name[0] = '^';
+		}
+
 		OS9StringToCString(thisDEnt->name);
+
+		if (strcmp((const char *)thisDEnt->name, ".") == 0)
+		{
+			continue;
+		}
+
+		if (strcmp((const char *)thisDEnt->name, "..") == 0)
+		{
+			continue;
+		}
+
 		printf("there's a directory entry %s\n", thisDEnt->name);
 		//ProcessDirectoryEntry(os9_path, &dEnt[k], dd_tot, path);
-		// TODO discard . and ..
-		// TODO handle deleted file
 	}
 
 	free(dir_data);
