@@ -12,11 +12,13 @@
 #include <glob.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 static int do_ftree(char **argv, char *p);
 static error_code ProcessScannedDirectories(os9_path_id os9_path);
 static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name);
 static error_code ReadFileEntirely(const char* path, u_char** outBuffer, size_t *outSize);
+static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* name, const u_int lsn);
 
 /* Help message */
 static char const * const helpMessage[] =
@@ -124,6 +126,12 @@ static int do_ftree(char **argv, char *p)
 		return -1;
 	}
 
+	ec = mkdir("dirs", 0777);
+	if (ec != 0) {
+		fprintf(stderr, "unable to create output directory: %s\n", strerror(errno));
+		return -1;
+	}
+
 	ec = ProcessScannedDirectories(os9_path);
 
     return ec;
@@ -151,6 +159,18 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 	int ec;
 
 	printf("processing raw directory %s\n", name);
+
+	char dirname[30];
+	int written = snprintf(dirname, 30, "dirs/%s", name);
+	if (written < 0 || written >= 30) {
+		fprintf(stderr, "Unable to make directory name\n");
+		return 1;
+	}
+	ec = mkdir(dirname, 0777);
+	if (ec) {
+		fprintf(stderr, "Unable to create directory: %s\n", strerror(errno));
+		return 1;
+	}
 	
 	size_t size;
 	u_char *dir_data;
@@ -182,8 +202,8 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 			continue;
 		}
 
-		printf("there's a directory entry %s\n", thisDEnt->name);
-		//ProcessDirectoryEntry(os9_path, &dEnt[k], dd_tot, path);
+		printf("processing entry %s\n", thisDEnt->name);
+		ProcessDirectoryEntry(os9_path, (const char *)thisDEnt->name, int3(thisDEnt->lsn));
 	}
 
 	free(dir_data);
@@ -238,5 +258,10 @@ static error_code ReadFileEntirely(const char* path, u_char** outBuffer, size_t 
 	*outBuffer = dir_data;
 	*outSize = size;
 
+	return 0;
+}
+
+static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* name, const u_int lsn)
+{
 	return 0;
 }
