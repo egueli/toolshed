@@ -11,10 +11,12 @@
 #include <math.h>
 #include <glob.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 static int do_ftree(char **argv, char *p);
-static error_code ProcessScannedDirectories();
-static error_code ProcessRawDirectory(const char* name);
+static error_code ProcessScannedDirectories(os9_path_id os9_path);
+static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name);
+static error_code ReadFileEntirely(const char* path, u_char** outBuffer, size_t *outSize);
 
 /* Help message */
 static char const * const helpMessage[] =
@@ -122,12 +124,12 @@ static int do_ftree(char **argv, char *p)
 		return -1;
 	}
 
-	ec = ProcessScannedDirectories();
+	ec = ProcessScannedDirectories(os9_path);
 
     return ec;
 }
 
-static error_code ProcessScannedDirectories()
+static error_code ProcessScannedDirectories(os9_path_id os9_path)
 {
     glob_t globbuf;
 
@@ -136,7 +138,7 @@ static error_code ProcessScannedDirectories()
 	int i;
 	for (i = 0; i < globbuf.gl_pathc; i++)
     {
-		ProcessRawDirectory(globbuf.gl_pathv[i]);
+		ProcessRawDirectory(os9_path, globbuf.gl_pathv[i]);
     }
 
     globfree(&globbuf);
@@ -144,10 +146,82 @@ static error_code ProcessScannedDirectories()
 	return 0;
 }
 
-static error_code ProcessRawDirectory(const char* name)
+static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 {
+	int ec;
+
 	printf("processing raw directory %s\n", name);
-	//int fd = open(globbuf.gl_pathv[0], O_RDONLY);
+	
+	size_t size;
+	u_char *dir_data;
+	ec = ReadFileEntirely(name, &dir_data, &size);
+	if (ec) {
+		fprintf(stderr, "Unable to read raw directory file %s: error code %d\n", name, ec);
+		return 1;
+	}
+
+	int k;
+	for (k = 0; k < (size / sizeof(os9_dir_entry)); k++)
+	{
+		os9_dir_entry *thisDEnt = ((os9_dir_entry*) dir_data) + k;
+		OS9StringToCString(thisDEnt->name);
+		printf("there's a directory entry %s\n", thisDEnt->name);
+		//ProcessDirectoryEntry(os9_path, &dEnt[k], dd_tot, path);
+		// TODO discard . and ..
+		// TODO handle deleted file
+	}
+
+	free(dir_data);
+
+	return 0;
+}
+
+
+static error_code ReadFileEntirely(const char* path, u_char** outBuffer, size_t *outSize)
+{
+	struct stat stats;
+	error_code ec = stat(path, &stats);
+	if (ec) {
+		fprintf(stderr, "Unable to get stats for %s\n", path);
+		return 1;
+	} 
+
+	off_t size = stats.st_size;
+
+	u_char *dir_data = malloc(size);
+	if (!dir_data) {
+		fprintf(stderr, "unable to allocate %ld bytes for directory data\n", size);
+		exit(-1);
+	}
+
+
+	FILE* file = fopen(path, "r");
+	if (!file) {
+		fprintf(stderr, "Unable to open file %s\n", path);
+		free(dir_data);
+		return 1;
+	}
+
+	u_char *next_chunk = dir_data;
+	size_t remaining = size;
+	while(remaining > 0) {
+		size_t chunk_size = (remaining < 1024) ? remaining : 1024;
+		size_t read_count = fread(next_chunk, sizeof(u_char), chunk_size, file);
+		if (read_count < 0)
+		{
+			fprintf(stderr, "Failed to read from %s at offset 0x%lx\n", path, (next_chunk - dir_data));
+			free(dir_data);
+			fclose(file);
+			return 1;
+		}
+		remaining -= read_count;
+		next_chunk += read_count;
+	}
+
+	fclose(file);
+
+	*outBuffer = dir_data;
+	*outSize = size;
 
 	return 0;
 }
