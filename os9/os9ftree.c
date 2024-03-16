@@ -13,12 +13,13 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <unistd.h>
 
 static int do_ftree(char **argv, char *p);
 static error_code ProcessScannedDirectories(os9_path_id os9_path);
 static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name);
 static error_code ReadFileEntirely(const char* path, u_char** outBuffer, size_t *outSize);
-static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* name, const u_int lsn);
+static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* dirname, const char* name, const u_int lsn);
 
 /* Help message */
 static char const * const helpMessage[] =
@@ -162,7 +163,7 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 
 	char dirname[30];
 	int written = snprintf(dirname, 30, "dirs/%s", name);
-	if (written < 0 || written >= 30) {
+	if (written < 4 || written >= 30) {
 		fprintf(stderr, "Unable to make directory name\n");
 		return 1;
 	}
@@ -203,7 +204,7 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 		}
 
 		printf("processing entry %s\n", thisDEnt->name);
-		ProcessDirectoryEntry(os9_path, (const char *)thisDEnt->name, int3(thisDEnt->lsn));
+		ProcessDirectoryEntry(os9_path, dirname, (const char *)thisDEnt->name, int3(thisDEnt->lsn));
 	}
 
 	free(dir_data);
@@ -211,6 +212,46 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 	return 0;
 }
 
+static error_code MakeLink(const char* dirname, const char* name, const char* lsn_file_name)
+{
+	char link_name[64];
+	snprintf(link_name, 63, "%s/%s", dirname, name);
+	char target[64];
+	snprintf(target, 63, "../../%s", lsn_file_name);
+
+	int error_code = symlink(target, link_name);
+	if (error_code) {
+		fprintf(stderr, "Unable to symlink %s -> %s: %s", link_name, target, strerror(errno));
+	}
+	return error_code;
+}
+
+static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* dirname, const char* name, const u_int lsn)
+{
+	/*
+	 * Given lsn 0xAABBCC:
+	 * * There is "lsn_AABBCC.file" i.e. $AABBCC points to a file FD. Then this function creates a symlink in dirname
+	 *   (assuming equal to dirs/lsn_DDEEFF.dir) that points to ../../lsn_AABBCC.file.
+	 * * There is "lsn_AABBCC.dir" i.e. $AABBCC points to a directory FD. This this function creates a symlink in
+	 *   dirname (assuming equal to dirs/lsn_DDEEFF.dir) that points to lsn_AABBCC.dir.
+	 * * There is neither file. Show an error and return.
+	*/
+	char lsn_file_name[32];
+	snprintf(lsn_file_name, 31, "lsn_%06x.dir", lsn);
+	if (access(lsn_file_name, F_OK) == 0) {
+		printf("would symlink to directory %s\n", lsn_file_name);
+		// TODO make it link to the directory (it might not exist at this moment)
+		return 0;
+	}
+
+	snprintf(lsn_file_name, 31, "lsn_%06x.file", lsn);
+	if (access(lsn_file_name, F_OK) == 0) {
+		return MakeLink(dirname, name, lsn_file_name);
+	}
+
+	fprintf(stderr, "unable to create symlink to LSN file 0x%06x\n", lsn);
+	return 1;
+}
 
 static error_code ReadFileEntirely(const char* path, u_char** outBuffer, size_t *outSize)
 {
@@ -258,10 +299,5 @@ static error_code ReadFileEntirely(const char* path, u_char** outBuffer, size_t 
 	*outBuffer = dir_data;
 	*outSize = size;
 
-	return 0;
-}
-
-static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* name, const u_int lsn)
-{
 	return 0;
 }
