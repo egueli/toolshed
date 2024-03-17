@@ -188,6 +188,8 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 	int k;
 	for (k = 0; k < (size / sizeof(os9_dir_entry)); k++)
 	{
+		char name[32];
+
 		os9_dir_entry *thisDEnt = ((os9_dir_entry*) dir_data) + k;
 
 		if (thisDEnt->name[0] == '\0' && thisDEnt->name[1] != '\0')
@@ -196,20 +198,35 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 		}
 
 		OS9StringToCString(thisDEnt->name);
+		strncpy(name, (char *)thisDEnt->name, 31);
 
-		if (strcmp((const char *)thisDEnt->name, ".") == 0)
+		if (strcmp(name, ".") == 0)
 		{
 			continue;
 		}
 
-		if (strcmp((const char *)thisDEnt->name, "..") == 0)
+		if (strcmp(name, "..") == 0)
 		{
 			continue;
 		}
 
-		ec = ProcessDirectoryEntry(os9_path, dirname, (const char *)thisDEnt->name, int3(thisDEnt->lsn));
+		while (1) {
+			char full_name[96];
+			snprintf(full_name, 95, "%s/%s", dirname, name);
+			// A file with the same name may exist already.
+			// This can happen with single-character deleted files.
+			if (access(full_name, F_OK) != 0) {
+				break;
+			}
+			char new_name[32];
+			snprintf(new_name, 31, "^%.29s", name);
+			fprintf(stderr, "'%s/%s' is already taken, retrying with '%s/%s'.\n", dirname, name, dirname, new_name);
+			strncpy(name, new_name, 31);
+		}
+
+		ec = ProcessDirectoryEntry(os9_path, dirname, name, int3(thisDEnt->lsn));
 		if (ec) {
-			fprintf(stderr, "error while processing directory entry #%d (%s), exiting.\n", k, thisDEnt->name);
+			fprintf(stderr, "error while processing directory entry #%d (%s), exiting.\n", k, name);
 			break;
 		}
 	}
