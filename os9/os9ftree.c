@@ -212,12 +212,26 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 	return 0;
 }
 
-static error_code MakeLink(const char* dirname, const char* name, const char* lsn_file_name)
+static error_code MakeFileLink(const char* dirname, const char* name, const char* lsn_file_name)
 {
 	char link_name[64];
 	snprintf(link_name, 63, "%s/%s", dirname, name);
 	char target[64];
 	snprintf(target, 63, "../../%s", lsn_file_name);
+
+	int error_code = symlink(target, link_name);
+	if (error_code) {
+		fprintf(stderr, "Unable to symlink %s -> %s: %s", link_name, target, strerror(errno));
+	}
+	return error_code;
+}
+
+static error_code MakeDirLink(const char* dirname, const char* name, const char* target_dir)
+{
+	char link_name[64];
+	snprintf(link_name, 63, "%s/%s", dirname, name);
+	char target[64];
+	snprintf(target, 63, "../%s", target_dir);
 
 	int error_code = symlink(target, link_name);
 	if (error_code) {
@@ -240,13 +254,12 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* dirnam
 	snprintf(lsn_file_name, 31, "lsn_%06x.dir", lsn);
 	if (access(lsn_file_name, F_OK) == 0) {
 		printf("would symlink to directory %s\n", lsn_file_name);
-		// TODO make it link to the directory (it might not exist at this moment)
-		return 0;
+		return MakeDirLink(dirname, name, lsn_file_name);
 	}
 
 	snprintf(lsn_file_name, 31, "lsn_%06x.file", lsn);
 	if (access(lsn_file_name, F_OK) == 0) {
-		return MakeLink(dirname, name, lsn_file_name);
+		return MakeFileLink(dirname, name, lsn_file_name);
 	}
 
 	fprintf(stderr, "unable to create symlink to LSN file 0x%06x\n", lsn);
