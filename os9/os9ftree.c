@@ -140,6 +140,8 @@ static int do_ftree(char **argv, char *p)
 
 static error_code ProcessScannedDirectories(os9_path_id os9_path)
 {
+	error_code ec;
+
     glob_t globbuf;
 
     glob("*.dir", 0, NULL, &globbuf);
@@ -147,19 +149,21 @@ static error_code ProcessScannedDirectories(os9_path_id os9_path)
 	int i;
 	for (i = 0; i < globbuf.gl_pathc; i++)
     {
-		ProcessRawDirectory(os9_path, globbuf.gl_pathv[i]);
+		ec = ProcessRawDirectory(os9_path, globbuf.gl_pathv[i]);
+		if (ec) {
+			printf("error processing raw directory %s, exiting.\n", globbuf.gl_pathv[i]);
+			break;	
+		}
     }
 
     globfree(&globbuf);
 
-	return 0;
+	return ec;
 }
 
 static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 {
 	int ec;
-
-	printf("processing raw directory %s\n", name);
 
 	char dirname[30];
 	int written = snprintf(dirname, 30, "dirs/%s", name);
@@ -203,13 +207,16 @@ static error_code ProcessRawDirectory(os9_path_id os9_path, const char* name)
 			continue;
 		}
 
-		printf("processing entry %s\n", thisDEnt->name);
-		ProcessDirectoryEntry(os9_path, dirname, (const char *)thisDEnt->name, int3(thisDEnt->lsn));
+		ec = ProcessDirectoryEntry(os9_path, dirname, (const char *)thisDEnt->name, int3(thisDEnt->lsn));
+		if (ec) {
+			fprintf(stderr, "error while processing directory entry #%d (%s), exiting.\n", k, thisDEnt->name);
+			break;
+		}
 	}
 
 	free(dir_data);
 
-	return 0;
+	return ec;
 }
 
 static error_code MakeFileLink(const char* dirname, const char* name, const char* lsn_file_name)
@@ -221,7 +228,7 @@ static error_code MakeFileLink(const char* dirname, const char* name, const char
 
 	int error_code = symlink(target, link_name);
 	if (error_code) {
-		fprintf(stderr, "Unable to symlink %s -> %s: %s", link_name, target, strerror(errno));
+		fprintf(stderr, "Unable to symlink %s -> %s: %s\n", link_name, target, strerror(errno));
 	}
 	return error_code;
 }
@@ -235,7 +242,7 @@ static error_code MakeDirLink(const char* dirname, const char* name, const char*
 
 	int error_code = symlink(target, link_name);
 	if (error_code) {
-		fprintf(stderr, "Unable to symlink %s -> %s: %s", link_name, target, strerror(errno));
+		fprintf(stderr, "Unable to symlink %s -> %s: %s\n", link_name, target, strerror(errno));
 	}
 	return error_code;
 }
@@ -253,7 +260,6 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* dirnam
 	char lsn_file_name[32];
 	snprintf(lsn_file_name, 31, "lsn_%06x.dir", lsn);
 	if (access(lsn_file_name, F_OK) == 0) {
-		printf("would symlink to directory %s\n", lsn_file_name);
 		return MakeDirLink(dirname, name, lsn_file_name);
 	}
 
