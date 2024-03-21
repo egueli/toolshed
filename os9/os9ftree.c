@@ -272,7 +272,7 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* dirnam
 	 *   (assuming equal to dirs/lsn_DDEEFF.dir) that points to ../../lsn_AABBCC.file.
 	 * * There is "lsn_AABBCC.dir" i.e. $AABBCC points to a directory FD. This this function creates a symlink in
 	 *   dirname (assuming equal to dirs/lsn_DDEEFF.dir) that points to lsn_AABBCC.dir.
-	 * * There is neither file. Show an error and return.
+	 * * There is neither file. Show a message and return.
 	*/
 	char lsn_file_name[32];
 	snprintf(lsn_file_name, 31, "lsn_%06x.dir", lsn);
@@ -285,8 +285,9 @@ static error_code ProcessDirectoryEntry(os9_path_id os9_path, const char* dirnam
 		return MakeFileLink(dirname, name, lsn_file_name);
 	}
 
-	fprintf(stderr, "unable to create symlink to LSN file 0x%06x\n", lsn);
-	return 1;
+	fprintf(stderr, "Neither 'lsn_%06x.dir' or 'lsn_%06x.file' were found for entry '%s/%s'. Assuming it's a file and hope for the best.\n", lsn, lsn, dirname, name);
+	snprintf(lsn_file_name, 31, "lsn_%06x.file", lsn);
+	return MakeFileLink(dirname, name, lsn_file_name);
 }
 
 static error_code ReadFileEntirely(const char* path, u_char** outBuffer, size_t *outSize)
