@@ -9,6 +9,8 @@
 #include <string.h>
 #include <math.h>
 
+#define SKIP_FD_DATE_CHECK
+
 static char *strcatdup( char *orig, char *cat1, char *cat2 );
 static error_code ProcessDirectorySector(os9_path_id os9_path, u_int fd_siz, u_int dd_tot, int dir_lsn, char *path, u_int *count);
 static int do_dirrec(char **argv, char *p, int lsn);
@@ -248,7 +250,8 @@ error_code CheckFDFields(fd_stats *file_fd)
 	{
 		return EFD_ATTR;
 	}
-	
+
+#ifndef SKIP_FD_DATE_CHECK
 	u_int mod_year = 1900 + file_fd->fd_dat[0];
 	if (mod_year >= 2000) {
 		return EFD_MOD_YEAR;
@@ -287,6 +290,7 @@ error_code CheckFDFields(fd_stats *file_fd)
 	if (mod_time == -1) {
 		return EFD_MOD_TIME;
 	}
+#endif
 
 	return EFD_OK;
 }
