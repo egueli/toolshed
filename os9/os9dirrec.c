@@ -211,7 +211,7 @@ error_code SaveFDToFile(os9_path_id os9_path, fd_stats *fd, char *path, u_int bp
 
 		u_char *buffer = (u_char *)malloc( bps );
 
-		for (int i = 0; i <= num && remaining > 0; i++)
+		for (int i = 0; i < num && remaining > 0; i++)
 		{
 			u_int lsn = segment_lsn + i;
 
